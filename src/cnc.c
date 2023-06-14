@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h>
 
 typedef enum {
    chuck_main,
@@ -15,24 +16,15 @@ typedef struct {
    double milling_speed;
 } Material;
 
-typedef struct {
-   enum {
-      CUTOFF,
-      TURNING,
-      THREADING,
-      MILL,
-      DRILL,
-      BORE
-   } tool;
-   double size; 
-} Tool;
-
 const Material STAINLESS_303 = {
    .turning_speed = 0.001,
    .cutoff_speed = 0.001,
    .drilling_speed = 0.001,
    .milling_speed = 0.001,
 };
+Material cnc_material;
+
+typedef double ToolSize;
 
 void cnc_toggle(Relay relay, bool state){
    switch(relay) {
@@ -72,11 +64,16 @@ void cnc_move(double x, double y, double z, unsigned flags){
    }
 
    //Error checking
-   if(index == 0)
-      fprintf(stderr, "ERROR: cnc_move called with no values other than 0.");
+   if(index == 0){
+      fprintf(stderr, "ERROR: cnc_move instruction doesn't move anything.\n");
+      exit(1);
+   }
 
-   if(index > 2)
-      fprintf(stderr, "ERROR: maximum of 2 axis may be moved at a time.");
+
+   if(index > 2){
+      fprintf(stderr, "ERROR: maximum of 2 axis may be moved at a time.\n");
+      exit(1);
+   }
 
    //relative movement
    for(int i = 0; i < index; ++i){
@@ -92,35 +89,55 @@ void cnc_move(double x, double y, double z, unsigned flags){
    puts("");
 }
 
-void cnc_mill_hex(Tool tool, double width_across_flats, double length){
-    
+void cnc_set_material(Material material){
+   cnc_material = material;
+}
+
+void cnc_mill_hex(ToolSize size, double width_across_flats, double length){
+   printf("(insert code for milling a hex here)\r\n");    
 }
 
 #define PICKOFF 1
-void cnc_cutoff(Tool tool, unsigned flags){
+void cnc_cutoff(ToolSize size, unsigned flags){
     
 }
 
 void cnc_reset(){
-   puts("M32");
+   printf("M32\r\n");
 }
 
-void cnc_note(const char * str){
-   printf("\n(%s)\n", str);
+void cnc_standard_setup(){
+   printf(
+      "(Program Start)\r\n\r\n"
+      "M52\r\n"
+      "M9\r\n"
+      "G50Z0\r\n"
+      "M6\r\n\r\n"
+   );
+}
+
+void cnc_begin_thread(unsigned id){
+   printf("$%i\r\n\r\n", id);
 }
 
 int main(){
-   Tool mill = {MILL, 0.080};
-   Tool cutoff = {CUTOFF, 0.080};
+   ToolSize mill = 0.500;
+   ToolSize cutoff = 0.050;
+   cnc_set_material(STAINLESS_303);
 
-   cnc_note("Program start");
+   cnc_begin_thread(1); 
+   cnc_standard_setup(); 
+
    cnc_toggle(oil, true);
    cnc_move(0, 0.001, 0.002, RAPID | RELATIVE);
    cnc_move(0, 0.001, 0.002, DEFAULT);
    cnc_move(0, -0.500, 0, DEFAULT);
    cnc_mill_hex(mill, 0.5, .25);
-   cnc_move(0, 0, 0, DEFAULT);
+   cnc_move(0, 0.5, 0, DEFAULT);
    cnc_cutoff(cutoff, PICKOFF);
+   cnc_reset();
+
+   cnc_begin_thread(2); 
    cnc_reset();
    
    return 0;
