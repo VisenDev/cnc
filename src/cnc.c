@@ -6,6 +6,11 @@
 typedef enum {
    chuck_main,
    chuck_back,
+   spindle_forward,
+   spindle_reverse,
+   spindle_back_forward,
+   spindle_back_reverse,
+   knock_out,
    oil
 } Relay;
 
@@ -22,15 +27,19 @@ const Material STAINLESS_303 = {
    .drilling_speed = 0.001,
    .milling_speed = 0.001,
 };
-Material cnc_material;
 
 typedef double ToolSize;
 
 void cnc_toggle(Relay relay, bool state){
    switch(relay) {
-      case chuck_main: state ? puts("G30") : puts("G50"); break;
-      case chuck_back: state ? puts("G12") : puts("G10"); break; 
-      case oil:        state ? puts("G12") : puts("G10"); break; 
+      case chuck_main:           state ? printf("M06\r\n") : printf("M07\r\n"); break;
+      case chuck_back:           state ? printf("M16\r\n") : printf("M17\r\n"); break;
+      case spindle_forward:      state ? printf("M03\r\n") : printf("M05\r\n"); break;
+      case spindle_reverse:      state ? printf("M04\r\n") : printf("M05\r\n"); break;
+      case spindle_back_forward: state ? printf("M23\r\n") : printf("M05\r\n"); break;
+      case spindle_back_reverse: state ? printf("M24\r\n") : printf("M05\r\n"); break;
+      case knock_out:            state ? printf("M10\r\n") : printf("M11\r\n"); break;
+      case oil:                  state ? printf("M52\r\n") : printf("M53\r\n"); break;
    }
 }
 
@@ -89,30 +98,49 @@ void cnc_move(double x, double y, double z, unsigned flags){
    puts("");
 }
 
-void cnc_set_material(Material material){
-   cnc_material = material;
-}
-
-void cnc_mill_hex(ToolSize size, double width_across_flats, double length){
-   printf("(insert code for milling a hex here)\r\n");    
+#define OVERSIZED_MILL 1
+void cnc_mill_hex(ToolSize size, double width_across_flats, double length, unsigned flags){
+   printf("\r\n(TODO: insert code for milling a hex here)\r\n\r\n");    
 }
 
 #define PICKOFF 1
 void cnc_cutoff(ToolSize size, unsigned flags){
-    
-}
-
-void cnc_reset(){
-   printf("M32\r\n");
-}
-
-void cnc_standard_setup(){
    printf(
-      "(Program Start)\r\n\r\n"
-      "M52\r\n"
-      "M9\r\n"
-      "G50Z0\r\n"
-      "M6\r\n\r\n"
+      "\r\n"
+      "(CUTOFF)\r\n"
+      "S1=2500\r\n"
+      "G814\r\n"
+      "T0404Z.993X.475\r\n"
+      "M88\r\n"
+      "G650\r\n"
+      "!2L650\r\n"
+      "G1X.197F.010\r\n"
+      "G1X-.010F.001\r\n"
+      "G813\r\n"
+      "G600\r\n"
+      "M89\r\n"
+      "G1X-.100F.0015\r\n\r\n"
+   );
+}
+
+void cnc_set_standard_machining_data(){
+   printf(
+      "\r\n"
+      "$0\r\n"
+      "D\r\n"
+      "#016=0000003750\r\n"
+      "#020=0000001000\r\n"
+      "#024=0000018000\r\n"
+      "#028=0000001000\r\n"
+      "#032=0000004000\r\n"
+      "#036=0002500000\r\n"
+      "#040=0000000010\r\n"
+      "#044=-000001000\r\n"
+      "#048=0000011000\r\n"
+      "#052=0000002000\r\n"
+      "#064=0000201000\r\n"
+      "#068=0000000000\r\n"
+      "%%\r\n"
    );
 }
 
@@ -121,24 +149,24 @@ void cnc_begin_thread(unsigned id){
 }
 
 int main(){
-   ToolSize mill = 0.500;
-   ToolSize cutoff = 0.050;
-   cnc_set_material(STAINLESS_303);
+   ToolSize MILL = 0.500;
+   ToolSize CUTOFF = 0.050;
 
    cnc_begin_thread(1); 
-   cnc_standard_setup(); 
-
    cnc_toggle(oil, true);
+   cnc_move(0, 0, -0.055, DEFAULT);
+   cnc_toggle(chuck_main, true);
+   cnc_move(0, 0, -0.050, RELATIVE);
+   cnc_toggle(spindle_forward, true);
    cnc_move(0, 0.001, 0.002, RAPID | RELATIVE);
    cnc_move(0, 0.001, 0.002, DEFAULT);
    cnc_move(0, -0.500, 0, DEFAULT);
-   cnc_mill_hex(mill, 0.5, .25);
+   cnc_mill_hex(MILL, 0.5, .25, OVERSIZED_MILL);
    cnc_move(0, 0.5, 0, DEFAULT);
-   cnc_cutoff(cutoff, PICKOFF);
-   cnc_reset();
+   cnc_cutoff(CUTOFF, PICKOFF);
 
    cnc_begin_thread(2); 
-   cnc_reset();
    
+   cnc_set_standard_machining_data();
    return 0;
 }
