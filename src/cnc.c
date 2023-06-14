@@ -8,16 +8,38 @@ typedef enum {
    oil
 } Relay;
 
+typedef struct {
+   double turning_speed;
+   double cutoff_speed;
+   double drilling_speed;
+   double milling_speed;
+} Material;
+
+typedef struct {
+   enum {
+      CUTOFF,
+      TURNING,
+      THREADING,
+      MILL,
+      DRILL,
+      BORE
+   } tool;
+   double size; 
+} Tool;
+
+const Material STAINLESS_303 = {
+   .turning_speed = 0.001,
+   .cutoff_speed = 0.001,
+   .drilling_speed = 0.001,
+   .milling_speed = 0.001,
+};
+
 void cnc_toggle(Relay relay, bool state){
    switch(relay) {
       case chuck_main: state ? puts("G30") : puts("G50"); break;
       case chuck_back: state ? puts("G12") : puts("G10"); break; 
       case oil:        state ? puts("G12") : puts("G10"); break; 
    }
-}
-
-void cnc_set(int id, int value){
-   
 }
 
 #define DEFAULT 0
@@ -67,7 +89,16 @@ void cnc_move(double x, double y, double z, unsigned flags){
    for(int i = 0; i < index; ++i){
       printf("%c%.3f ", axis[i].id, axis[i].value);
    }
-   puts("\n");
+   puts("");
+}
+
+void cnc_mill_hex(Tool tool, double width_across_flats, double length){
+    
+}
+
+#define PICKOFF 1
+void cnc_cutoff(Tool tool, unsigned flags){
+    
 }
 
 void cnc_reset(){
@@ -79,11 +110,17 @@ void cnc_note(const char * str){
 }
 
 int main(){
+   Tool mill = {MILL, 0.080};
+   Tool cutoff = {CUTOFF, 0.080};
+
    cnc_note("Program start");
    cnc_toggle(oil, true);
    cnc_move(0, 0.001, 0.002, RAPID | RELATIVE);
    cnc_move(0, 0.001, 0.002, DEFAULT);
    cnc_move(0, -0.500, 0, DEFAULT);
+   cnc_mill_hex(mill, 0.5, .25);
+   cnc_move(0, 0, 0, DEFAULT);
+   cnc_cutoff(cutoff, PICKOFF);
    cnc_reset();
    
    return 0;
