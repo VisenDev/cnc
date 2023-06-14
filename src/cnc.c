@@ -6,12 +6,17 @@
 typedef enum {
    chuck_main,
    chuck_back,
-   spindle_forward,
-   spindle_reverse,
+   spindle_main_forward,
+   spindle_main_reverse,
    spindle_back_forward,
    spindle_back_reverse,
+   spindle_tool_forward,
+   spindle_tool_reverse,
    knock_out,
-   oil
+   oil,
+   check_tool_break,
+   part_counter,
+   part_chute
 } Relay;
 
 typedef struct {
@@ -27,6 +32,7 @@ const Material STAINLESS_303 = {
    .drilling_speed = 0.001,
    .milling_speed = 0.001,
 };
+Material cnc_material = {0};
 
 typedef double ToolSize;
 
@@ -34,20 +40,30 @@ void cnc_toggle(Relay relay, bool state){
    switch(relay) {
       case chuck_main:           state ? printf("M06\r\n") : printf("M07\r\n"); break;
       case chuck_back:           state ? printf("M16\r\n") : printf("M17\r\n"); break;
-      case spindle_forward:      state ? printf("M03\r\n") : printf("M05\r\n"); break;
-      case spindle_reverse:      state ? printf("M04\r\n") : printf("M05\r\n"); break;
+      case spindle_main_forward: state ? printf("M03\r\n") : printf("M05\r\n"); break;
+      case spindle_main_reverse: state ? printf("M04\r\n") : printf("M05\r\n"); break;
       case spindle_back_forward: state ? printf("M23\r\n") : printf("M05\r\n"); break;
       case spindle_back_reverse: state ? printf("M24\r\n") : printf("M05\r\n"); break;
+      case spindle_tool_forward: state ? printf("M80\r\n") : printf("M82\r\n"); break;
+      case spindle_tool_reverse: state ? printf("M81\r\n") : printf("M82\r\n"); break;
       case knock_out:            state ? printf("M10\r\n") : printf("M11\r\n"); break;
       case oil:                  state ? printf("M52\r\n") : printf("M53\r\n"); break;
+      case part_counter:                 printf("M56\r\n");                     break;
+      case check_tool_break:             printf("M51\r\n");                     break;
+      case part_chute:           state ? printf("M32\r\n") : printf("M33\r\n"); break;
    }
+}
+
+void cnc_sleep(double seconds){
+   printf("G04U%.3f\r\n", seconds);
 }
 
 #define DEFAULT 0
 #define RAPID 1
 #define RELATIVE 2
+#define CUT 4
 void cnc_move(double x, double y, double z, unsigned flags){ 
-   
+
    unsigned index = 0;
    struct {
       char id;
@@ -91,11 +107,20 @@ void cnc_move(double x, double y, double z, unsigned flags){
    }
    
    //output
-   printf("G%i ", flags & RAPID);
-   for(int i = 0; i < index; ++i){
-      printf("%c%.3f ", axis[i].id, axis[i].value);
+   if(flags & CUT){
+      printf("G98 ");
    }
-   puts("");
+   
+      printf("G%i ", flags & RAPID);
+      for(int i = 0; i < index; ++i){
+         printf("%c%.3f ", axis[i].id, axis[i].value);
+      }
+
+   if(flags & CUT){
+      printf("F %.3f", cnc_material.turning_speed);
+   }
+   printf("\r\n");
+   
 }
 
 #define OVERSIZED_MILL 1
@@ -144,22 +169,32 @@ void cnc_set_standard_machining_data(){
    );
 }
 
+void cnc_faceoff_material(double length){
+   printf("(TODO: add code for facing off the material)\r\n\r\n)"); 
+}
+
 void cnc_begin_thread(unsigned id){
    printf("$%i\r\n\r\n", id);
 }
 
 int main(){
+   //setup
    ToolSize MILL = 0.500;
    ToolSize CUTOFF = 0.050;
+   cnc_material = STAINLESS_303;
 
+   //machining
    cnc_begin_thread(1); 
    cnc_toggle(oil, true);
    cnc_move(0, 0, -0.055, DEFAULT);
+   cnc_sleep(.2);
    cnc_toggle(chuck_main, true);
+   cnc_sleep(.2);
    cnc_move(0, 0, -0.050, RELATIVE);
-   cnc_toggle(spindle_forward, true);
+   cnc_toggle(spindle_main_forward, true);
+
    cnc_move(0, 0.001, 0.002, RAPID | RELATIVE);
-   cnc_move(0, 0.001, 0.002, DEFAULT);
+   cnc_move(0, 0.001, 0.002, CUT);
    cnc_move(0, -0.500, 0, DEFAULT);
    cnc_mill_hex(MILL, 0.5, .25, OVERSIZED_MILL);
    cnc_move(0, 0.5, 0, DEFAULT);
