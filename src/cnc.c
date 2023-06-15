@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include "vrg.h"
 
 typedef enum {
    chuck_main,
@@ -83,22 +84,27 @@ void cnc_spindle_set(Spindle spindle, SpindleStatus status, SpindleFeedType feed
       break;
    case spindle_tool:
       switch(status){
-         case forward: printf("%s\r\n M80 S%.3f\r\n", feedrate, feedtype == per_minute ? "G98" : "G99"); break;
-         case reverse: printf("%s\r\nM81 S%.3f\r\n", feedrate, feedtype == per_minute ? "G98" : "G99"); break;
+         case forward: printf("%s\r\n M80 S%.3f\r\n", feedtype == per_minute ? "G98" : "G99", feedrate); break;
+         case reverse: printf("%s\r\nM81 S%.3f\r\n", feedtype == per_minute ? "G98" : "G99", feedrate); break;
          case stop: printf("M82\r\n");
       }
-
    }
 }
 
+void cnc_begin_spindle_rotation(unsigned starting_rotation){
+   printf("M28S%d\r\n", starting_rotation);
+};
 
-cnc_spindle_rotate(Spindle spindle, unsigned angle){
+void cnc_spindle_rotate(Spindle spindle, unsigned angle){
 
    //TODO: FIGURE OUT HOW M28 works
    switch(spindle){
-   case spindle_main: 
-      printf("M28S30\r\n");
-
+      case spindle_main:
+         break;
+      case spindle_back:
+         break;
+      case spindle_tool:
+         break;
    } 
 
 }
@@ -183,7 +189,7 @@ void cnc_mill_hex(
    cnc_spindle_set(spindle_main, stop, 0, 0);
    cnc_spindle_set(spindle_tool, forward, per_minute, mill_speed);
    cnc_spindle_rotate(spindle_main, 30);
-
+/*
    "(MILL HEX)\r\n"
    "M5\r\n"
    "G98\r\n"
@@ -215,7 +221,7 @@ void cnc_mill_hex(
    "G0X1.0\r\n"
    "M82\r\n"
    "G99\r\n"
-   
+  */ 
 }
 
 #define PICKOFF 1
@@ -304,9 +310,14 @@ int main(){
    cnc_select_tool(4);
    cnc_spindle_set(spindle_main, forward, per_minute, 0.001);
    cnc_turn(0, 0, .05, STAINLESS_303.turning_speed, RELATIVE);
+<<<<<<< HEAD
    cnc_mill_hex(STAINLESS_303.milling_speed, HEX_MILL_SIZE, 0.5, .25, ALLOW_OVERSIZED_MILL);
+=======
+>>>>>>> f51bc71a738f0c41f968079996d4b94dfe1b6e91
    cnc_move(0, 0.5, 0, DEFAULT);
    cnc_cutoff(STAINLESS_303.cutoff_speed, PICKOFF);
+
+   cnc_begin_spindle_rotation(0);
 
    cnc_begin_thread(2); 
    
