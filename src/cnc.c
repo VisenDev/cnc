@@ -10,7 +10,10 @@ typedef enum {
    oil,
    check_tool_break,
    part_counter,
-   part_chute
+   part_chute,
+   interference_check,
+   sync_spindles,
+   pickoff_support
 } Relay;
 
 typedef struct {
@@ -39,9 +42,11 @@ void cnc_toggle(Relay relay, bool state){
       case part_counter:                 printf("M56\r\n");                     break;
       case check_tool_break:             printf("M51\r\n");                     break;
       case part_chute:           state ? printf("M32\r\n") : printf("M33\r\n"); break;
+      case interference_check:   state ? printf("M89\r\n") : printf("M88\r\n"); break;
+      case sync_spindles:        state ? printf("G814\r\n") : printf("G813\r\n"); break;
+      case pickoff_support:      state ? printf("G650\r\n") : printf("G600\r\n"); break;
    }
 }
-
 
 typedef enum {
    spindle_main,
@@ -166,22 +171,28 @@ void cnc_mill_hex(ToolSize size, double width_across_flats, double length, unsig
 
 #define PICKOFF 1
 void cnc_cutoff(double feedrate, unsigned flags){
-   printf(
-      "\r\n"
-      "(CUTOFF)\r\n"
-      "S1=2500\r\n"
-      "G814\r\n"
-      "T0404Z.993X.475\r\n"
-      "M88\r\n"
-      "G650\r\n"
-      "!2L650\r\n"
-      "G1X.197F.010\r\n"
-      "G1X-.010F.001\r\n"
-      "G813\r\n"
-      "G600\r\n"
-      "M89\r\n"
-      "G1X-.100F.0015\r\n\r\n"
-   );
+   //cutoff tool must be called before calling cnc_cutoff
+
+   printf( "\r\n(CUTOFF)\r\n");
+
+   cnc_spindle_set(spindle_main, forward, per_minute, feedrate);
+   cnc_toggle(interference_check, false);
+   
+   if(flags & PICKOFF){
+      cnc_toggle(sync_spindles, true);
+      cnc_toggle(pickoff_support, true);
+      printf("!2L650\r\n");
+   }
+
+   cnc_turn(-.010, 0, 0, feedrate, DEFAULT);
+
+   cnc_spindle_set(spindle_main, stop, 0, 0);
+   cnc_toggle(interference_check, false);
+
+   if(flags & PICKOFF){
+      cnc_toggle(sync_spindles, false);
+      cnc_toggle(pickoff_support, false);
+   }
 }
 
 void cnc_set_standard_machining_data(){
