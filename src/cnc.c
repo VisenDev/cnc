@@ -1,21 +1,25 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdarg.h>
-#include <stdlib.h>
-#include "vrg.h"
+#include <stdlib.h> //#include "vrg.h"
 
-typedef enum {
-   chuck_main,
-   chuck_back,
-   knock_out,
-   oil,
-   check_tool_break,
-   part_counter,
-   part_chute,
-   interference_check,
-   sync_spindles,
-   pickoff_support
-} Relay;
+#define FOREACH_RELAY(func) \
+   func(chuck_main) \
+   func(chuck_back) \
+   func(knock_out) \
+   func(oil) \
+   func(check_tool_break) \
+   func(part_counter) \
+   func(part_chute) \
+   func(interference_check) \
+   func(sync_spindles) \
+   func(pickoff_support) \
+
+#define str(x) #x,
+#define val(x) x,
+
+typedef enum { FOREACH_RELAY(val) } Relay;
+const char* RelayNames[] = {FOREACH_RELAY(str)};
 
 typedef struct {
    double turning_speed;
@@ -35,6 +39,7 @@ Material cnc_material = {0};
 typedef double ToolSize;
 
 void cnc_toggle(Relay relay, bool state){
+   printf("\r\n(%s toggled %s)\r\n", RelayNames[relay], state ? "on" : "off");
    switch(relay) {
       case chuck_main:           state ? printf("M06\r\n") : printf("M07\r\n"); break;
       case chuck_back:           state ? printf("M16\r\n") : printf("M17\r\n"); break;
@@ -228,7 +233,7 @@ void cnc_mill_hex(
 void cnc_cutoff(double feedrate, unsigned flags){
    //cutoff tool must be called before calling cnc_cutoff
 
-   printf( "\r\n(CUTOFF)\r\n");
+   printf( "\r\n(CUTOFF BEGIN)\r\n");
 
    cnc_spindle_set(spindle_main, forward, per_minute, feedrate);
    cnc_toggle(interference_check, false);
@@ -248,10 +253,14 @@ void cnc_cutoff(double feedrate, unsigned flags){
       cnc_toggle(sync_spindles, false);
       cnc_toggle(pickoff_support, false);
    }
+
+   printf("(CUTOFF END)\r\n\r\n");
 }
 
 void cnc_set_standard_machining_data(){
    printf(
+      "\r\n"
+      "(Setting Machining Data)\r\n"
       "\r\n"
       "$0\r\n"
       "D\r\n"
@@ -276,6 +285,14 @@ void cnc_faceoff_material(double length){
 }
 
 void cnc_begin_thread(unsigned id){
+   if(id != 1 && id != 2){
+      fprintf(stderr, "invalid id passed to cnc_begin_thread, valid values are: 1, 2\n");
+      exit(1);
+   }
+   
+   printf("\r\n(");;
+   printf(id == 1 ? "main" : "sub");
+   printf(" spindle program begin)\r\n");
    printf("$%i\r\n\r\n", id);
 }
 
@@ -289,7 +306,7 @@ void cnc_set_program_number(unsigned number){
       fprintf(stderr, "invalid program number chosen");
       exit(1);
    }
-   printf("O%d", number);
+   printf("%%\r\n(Setting program number)\r\nO%d\r\n", number);
 }
 
 int main(){
@@ -310,10 +327,7 @@ int main(){
    cnc_select_tool(4);
    cnc_spindle_set(spindle_main, forward, per_minute, 0.001);
    cnc_turn(0, 0, .05, STAINLESS_303.turning_speed, RELATIVE);
-<<<<<<< HEAD
    cnc_mill_hex(STAINLESS_303.milling_speed, HEX_MILL_SIZE, 0.5, .25, ALLOW_OVERSIZED_MILL);
-=======
->>>>>>> f51bc71a738f0c41f968079996d4b94dfe1b6e91
    cnc_move(0, 0.5, 0, DEFAULT);
    cnc_cutoff(STAINLESS_303.cutoff_speed, PICKOFF);
 
