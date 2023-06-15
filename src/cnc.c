@@ -6,12 +6,6 @@
 typedef enum {
    chuck_main,
    chuck_back,
-   spindle_main_forward,
-   spindle_main_reverse,
-   spindle_back_forward,
-   spindle_back_reverse,
-   spindle_tool_forward,
-   spindle_tool_reverse,
    knock_out,
    oil,
    check_tool_break,
@@ -40,17 +34,55 @@ void cnc_toggle(Relay relay, bool state){
    switch(relay) {
       case chuck_main:           state ? printf("M06\r\n") : printf("M07\r\n"); break;
       case chuck_back:           state ? printf("M16\r\n") : printf("M17\r\n"); break;
-      case spindle_main_forward: state ? printf("M03\r\n") : printf("M05\r\n"); break;
-      case spindle_main_reverse: state ? printf("M04\r\n") : printf("M05\r\n"); break;
-      case spindle_back_forward: state ? printf("M23\r\n") : printf("M05\r\n"); break;
-      case spindle_back_reverse: state ? printf("M24\r\n") : printf("M05\r\n"); break;
-      case spindle_tool_forward: state ? printf("M80\r\n") : printf("M82\r\n"); break;
-      case spindle_tool_reverse: state ? printf("M81\r\n") : printf("M82\r\n"); break;
       case knock_out:            state ? printf("M10\r\n") : printf("M11\r\n"); break;
       case oil:                  state ? printf("M52\r\n") : printf("M53\r\n"); break;
       case part_counter:                 printf("M56\r\n");                     break;
       case check_tool_break:             printf("M51\r\n");                     break;
       case part_chute:           state ? printf("M32\r\n") : printf("M33\r\n"); break;
+   }
+}
+
+
+typedef enum {
+   main,
+   back
+   tool,
+} Spindle;
+
+typedef enum {
+   forward,
+   reverse,
+   stop 
+} SpindleStatus;
+
+typedef enum {
+   per_rotation,
+   per_minute
+} SpindleFeedType;
+
+void cnc_spindle_set(Spindle spindle, SpindleStatus status, SpindleFeedType feedtype, double feedrate){
+   switch(spindle){
+   case main:
+      switch(status){
+         case forward: printf("M3 S1=%.3f %s\r\n", feedrate, feedtype == per_minute ? "G98" : "G99"); break;
+         case reverse: printf("M4 S1=%.3f %s\r\n", feedrate, feedtype == per_minute ? "G98" : "G99"); break;
+         case stop: printf("M5\r\n"); break;
+      }
+      break;
+   case back:
+      switch(status){
+         case forward: printf("M23 S2=%.3f %s\r\n", feedrate, feedtype == per_minute ? "G98" : "G99"); break;
+         case reverse: printf("M24 S2=%.3f %s\r\n", feedrate, feedtype == per_minute ? "G98" : "G99"); break;
+         case stop: printf("M25\r\n"); break;
+      }
+      break;
+   case tool:
+      switch(status){
+         case forward: printf("M80 S3=%.3f %s\r\n", feedrate, feedtype == per_minute ? "G98" : "G99"); break;
+         case reverse: printf("M81 S3=%.3f %s\r\n", feedrate, feedtype == per_minute ? "G98" : "G99"); break;
+         case stop: printf("M82\r\n");
+      }
+
    }
 }
 
@@ -181,10 +213,23 @@ void cnc_begin_thread(unsigned id){
    printf("$%i\r\n\r\n", id);
 }
 
+void cnc_select_tool(unsigned tool_id){
+   printf("\r\n(Calling up tool %i)\r\n", tool_id);
+   printf("T%02d00\r\n\r\n", tool_id);
+}
+
+void cnc_set_program_number(unsigned number){
+   if(number < 1 || number > 8999){
+      fprintf(stderr, "invalid program number chosen");
+      exit(1);
+   }
+   printf("O%d", number);
+}
+
 int main(){
    //setup
    ToolSize MILL = 0.500;
-   cnc_material = STAINLESS_303;
+   cnc_set_program_number(1051);
 
    //machining
    cnc_begin_thread(1); 
@@ -194,9 +239,10 @@ int main(){
    cnc_toggle(chuck_main, true);
    cnc_sleep(.2);
    cnc_move(0, 0, -0.050, RELATIVE);
-   cnc_toggle(spindle_main_forward, true);
 
    cnc_move(0, 0.001, 0.002, RAPID | RELATIVE);
+   cnc_select_tool(4);
+   cnc_spindle_set(main, forward, per_minute, 0.001);
    cnc_turn(0, 0, .05, STAINLESS_303.turning_speed, RELATIVE);
    cnc_mill_hex(MILL, 0.5, .25, OVERSIZED_MILL);
    cnc_move(0, 0.5, 0, DEFAULT);
