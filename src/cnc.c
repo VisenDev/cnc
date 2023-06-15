@@ -83,12 +83,24 @@ void cnc_spindle_set(Spindle spindle, SpindleStatus status, SpindleFeedType feed
       break;
    case spindle_tool:
       switch(status){
-         case forward: printf("M80 S3=%.3f %s\r\n", feedrate, feedtype == per_minute ? "G98" : "G99"); break;
-         case reverse: printf("M81 S3=%.3f %s\r\n", feedrate, feedtype == per_minute ? "G98" : "G99"); break;
+         case forward: printf("%s\r\n M80 S%.3f\r\n", feedrate, feedtype == per_minute ? "G98" : "G99"); break;
+         case reverse: printf("%s\r\nM81 S%.3f\r\n", feedrate, feedtype == per_minute ? "G98" : "G99"); break;
          case stop: printf("M82\r\n");
       }
 
    }
+}
+
+
+cnc_spindle_rotate(Spindle spindle, unsigned angle){
+
+   //TODO: FIGURE OUT HOW M28 works
+   switch(spindle){
+   case spindle_main: 
+      printf("M28S30\r\n");
+
+   } 
+
 }
 
 void cnc_sleep(double seconds){
@@ -164,9 +176,46 @@ void cnc_turn(double x, double y, double z, double feedrate, unsigned flags){
 }
 
 
-#define OVERSIZED_MILL 1
-void cnc_mill_hex(ToolSize size, double width_across_flats, double length, unsigned flags){
-   printf("\r\n(TODO: insert code for milling a hex here)\r\n\r\n");    
+#define ALLOW_OVERSIZED_MILL 1
+void cnc_mill_hex(
+   double mill_speed, double mill_diameter, double width_across_flats, double length, unsigned flags
+){
+   cnc_spindle_set(spindle_main, stop, 0, 0);
+   cnc_spindle_set(spindle_tool, forward, per_minute, mill_speed);
+   cnc_spindle_rotate(spindle_main, 30);
+
+   "(MILL HEX)\r\n"
+   "M5\r\n"
+   "G98\r\n"
+   "M80S3000\r\n"
+   "M28S30\r\n"
+   "T0808X1.0Y1.0\r\n"
+   "G50W-.395\r\n"
+   "G0X.3095Z1.0\r\n"
+   "G1Y-1.0F10.0\r\n"
+   "G1Y1.0F90.0\r\n"
+   "M28H60\r\n"
+   "G1Y-1.0F10.0\r\n"
+   "G1Y1.0F90.0\r\n"
+   "M28H60\r\n"
+   "G1Y-1.0F10.0\r\n"
+   "G1Y1.0F90.0\r\n"
+   "M28H60\r\n"
+   "G1Y-1.0F10.0\r\n"
+   "G1Y1.0F90.0\r\n"
+   "M28H60\r\n"
+   "G1Y-1.0F10.0\r\n"
+   "G1Y1.0F90.0\r\n"
+   "M28H60\r\n"
+   "G1Y-1.0F10.0\r\n"
+   "G1Y1.0F90.0\r\n"
+   "G0X.347\r\n"
+   "G1H360.0F3000\r\n"
+   "G50W.395\r\n"
+   "G0X1.0\r\n"
+   "M82\r\n"
+   "G99\r\n"
+   
 }
 
 #define PICKOFF 1
