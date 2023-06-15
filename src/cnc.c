@@ -62,6 +62,7 @@ void cnc_sleep(double seconds){
 #define RAPID 1
 #define RELATIVE 2
 #define CUT 4
+#define SKIP_NEWLINE 8
 void cnc_move(double x, double y, double z, unsigned flags){ 
 
    unsigned index = 0;
@@ -105,23 +106,26 @@ void cnc_move(double x, double y, double z, unsigned flags){
       if(flags & RELATIVE) 
          axis[i].id -= 3;
    }
-   
-   //output
-   if(flags & CUT){
-      printf("G98 ");
-   }
-   
-      printf("G%i ", flags & RAPID);
-      for(int i = 0; i < index; ++i){
-         printf("%c%.3f ", axis[i].id, axis[i].value);
-      }
 
-   if(flags & CUT){
-      printf("F %.3f", cnc_material.turning_speed);
+   //main output
+   printf("G%i ", flags & RAPID);
+   for(int i = 0; i < index; ++i){
+      printf("%c%.3f ", axis[i].id, axis[i].value);
    }
-   printf("\r\n");
+
+   if(!(flags & SKIP_NEWLINE)){
+      printf("\r\n");
+   }
    
 }
+
+void cnc_turn(double x, double y, double z, double feedrate, unsigned flags){ 
+   printf("G98 ");
+   cnc_move(x, y, z, flags | SKIP_NEWLINE);
+   printf("F %.3f", feedrate);
+   printf("\r\n");
+}
+
 
 #define OVERSIZED_MILL 1
 void cnc_mill_hex(ToolSize size, double width_across_flats, double length, unsigned flags){
@@ -129,7 +133,7 @@ void cnc_mill_hex(ToolSize size, double width_across_flats, double length, unsig
 }
 
 #define PICKOFF 1
-void cnc_cutoff(ToolSize size, unsigned flags){
+void cnc_cutoff(double feedrate, unsigned flags){
    printf(
       "\r\n"
       "(CUTOFF)\r\n"
@@ -180,7 +184,6 @@ void cnc_begin_thread(unsigned id){
 int main(){
    //setup
    ToolSize MILL = 0.500;
-   ToolSize CUTOFF = 0.050;
    cnc_material = STAINLESS_303;
 
    //machining
@@ -194,11 +197,10 @@ int main(){
    cnc_toggle(spindle_main_forward, true);
 
    cnc_move(0, 0.001, 0.002, RAPID | RELATIVE);
-   cnc_move(0, 0.001, 0.002, CUT);
-   cnc_move(0, -0.500, 0, DEFAULT);
+   cnc_turn(0, 0, .05, STAINLESS_303.turning_speed, RELATIVE);
    cnc_mill_hex(MILL, 0.5, .25, OVERSIZED_MILL);
    cnc_move(0, 0.5, 0, DEFAULT);
-   cnc_cutoff(CUTOFF, PICKOFF);
+   cnc_cutoff(STAINLESS_303.cutoff_speed, PICKOFF);
 
    cnc_begin_thread(2); 
    
