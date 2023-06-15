@@ -288,8 +288,8 @@ void cnc_set_program_number(unsigned number){
 
 int main(){
    //setup
-   ToolSize MILL = 0.500;
    cnc_set_program_number(1051);
+   #define HEX_MILL_SIZE 0.5
 
    //machining
    cnc_begin_thread(1); 
@@ -304,7 +304,7 @@ int main(){
    cnc_select_tool(4);
    cnc_spindle_set(spindle_main, forward, per_minute, 0.001);
    cnc_turn(0, 0, .05, STAINLESS_303.turning_speed, RELATIVE);
-   cnc_mill_hex(MILL, 0.5, .25, OVERSIZED_MILL);
+   cnc_mill_hex(STAINLESS_303.milling_speed, HEX_MILL_SIZE, 0.5, .25, ALLOW_OVERSIZED_MILL);
    cnc_move(0, 0.5, 0, DEFAULT);
    cnc_cutoff(STAINLESS_303.cutoff_speed, PICKOFF);
 
