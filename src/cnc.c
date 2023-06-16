@@ -1,7 +1,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdarg.h>
-#include <stdlib.h> //#include "vrg.h"
+#include <stdlib.h> 
+#include "vrg.h"
 
 #define FOREACH_RELAY(func) \
    func(chuck_main) \
@@ -118,6 +119,36 @@ void cnc_sleep(double seconds){
    printf("G04U%.3f\r\n", seconds);
 }
 
+typedef enum {
+   absolute,
+   relative
+} MovementType;
+
+typedef enum {
+   X = 88, 
+   Y = 89,
+   Z = 90,
+   NONE = 0
+} Axis;
+
+#define RAPID -10000.0
+void cnc_moveX(double feedrate, MovementType type, Axis a, double a_movement, Axis b, double b_movement){
+   printf(feedrate == RAPID ? "G0" : "G1"); 
+
+   printf(" %c %.3f", type == relative ? (char)(a) - 3 : (char)(a), a_movement);
+   if(b != NONE){
+      printf("%c %.3f", type == relative ? (char)(b) - 3 : (char)(a), b_movement);
+   }
+   if(feedrate != RAPID){
+      printf(" F%.3f", feedrate);
+   }   
+   printf("\r\n");
+}
+#define cnc_move(...) vrg(cnc_move, __VA_ARGS__)
+#define cnc_move4(f, t, a, am) cnc_moveX(f, t, a, am, NONE, 0)
+#define cnc_move6(f, t, a, am, b, bm) cnc_moveX(f, t, a, am, b, bm)
+
+/*
 #define DEFAULT 0
 #define RAPID 1
 #define RELATIVE 2
@@ -186,6 +217,7 @@ void cnc_turn(double x, double y, double z, double feedrate, unsigned flags){
    printf("\r\n");
 }
 
+*/
 
 #define ALLOW_OVERSIZED_MILL 1
 void cnc_mill_hex(
@@ -244,7 +276,8 @@ void cnc_cutoff(double feedrate, unsigned flags){
       printf("!2L650\r\n");
    }
 
-   cnc_turn(-.010, 0, 0, feedrate, DEFAULT);
+   //cnc_turn(-.010, 0, 0, feedrate, DEFAULT);
+   //TODO add different tool movement function
 
    cnc_spindle_set(spindle_main, stop, 0, 0);
    cnc_toggle(interference_check, false);
@@ -317,22 +350,15 @@ int main(){
    //machining
    cnc_begin_thread(1); 
    cnc_toggle(oil, true);
-   cnc_move(0, 0, -0.055, DEFAULT);
-   cnc_sleep(.2);
+   cnc_toggle(chuck_main, false);
+   cnc_move(RAPID, absolute, Z, -0.055);
    cnc_toggle(chuck_main, true);
-   cnc_sleep(.2);
-   cnc_move(0, 0, -0.050, RELATIVE);
-
-   cnc_move(0, 0.001, 0.002, RAPID | RELATIVE);
+   cnc_move(RAPID, absolute, Z, -0.005);
    cnc_select_tool(4);
-   cnc_spindle_set(spindle_main, forward, per_minute, 0.001);
-   cnc_turn(0, 0, .05, STAINLESS_303.turning_speed, RELATIVE);
-   cnc_mill_hex(STAINLESS_303.milling_speed, HEX_MILL_SIZE, 0.5, .25, ALLOW_OVERSIZED_MILL);
-   cnc_move(0, 0.5, 0, DEFAULT);
-   cnc_cutoff(STAINLESS_303.cutoff_speed, PICKOFF);
-
-   cnc_begin_spindle_rotation(0);
-
+   cnc_move(0.001, absolute, Z, 0);
+   cnc_move(STAINLESS_303.cutoff_speed, absolute, X, -0.01);
+   cnc_toggle(oil, false);
+   
    cnc_begin_thread(2); 
    
    cnc_set_standard_machining_data();

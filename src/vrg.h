@@ -4,3 +4,16 @@
 #define vrg_cat(x,y)   vrg_cat0(x,y)
 
 #define vrg(vrg_f,...) vrg_cat(vrg_f, vrg_argn(__VA_ARGS__))(__VA_ARGS__)
+
+/*
+
+char * msg_default = "How are you?";
+#define greet(...)   vrg(greet, __VA_ARGS__)
+#define greet1(n)    greetX(n, msg_default)
+#define greet2(n, m) greetX(n, m)
+void greetX(char *name, char *msg) {
+  printf("Hello %s. %s\n", name, msg);
+}
+
+
+*/
