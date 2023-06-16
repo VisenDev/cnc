@@ -1,5 +1,7 @@
 #include "cnc.c"
 
+
+
 int main(){
    
    cnc_set_program_number(1051);
@@ -11,7 +13,7 @@ int main(){
 
    cnc_move(RAPID, absolute, X, .5);
    cnc_move(RAPID, absolute, Z, 1.0);
-   cnc_cutoff(STAINLESS_303.cutoff_speed);
+   cnc_cutoff(STAINLESS_303.cutoff_speed, PICKOFF);
    
    cnc_move(RAPID, absolute, X, .5);
    cnc_select_tool(27);
