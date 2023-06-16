@@ -1,12 +1,10 @@
-#pragma once
-#define CNC_IMPLEMENTATION
-
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h> 
 #include <stddef.h>
 #include "vrg.h"
+
 #define FOREACH_RELAY(func) \
    func(chuck_main) \
    func(chuck_back) \
@@ -68,31 +66,6 @@ typedef enum {
    Z = 90,
    NONE = 0
 } Axis;
-
-void cnc_set_program_number(unsigned number);
-void cnc_toggle(Relay relay, bool state);
-
-#define ALLOW_OVERSIZED_MILL 1
-void cnc_mill_hex( double mill_speed, double mill_diameter, double width_across_flats, double length, unsigned flags);
-void cnc_spindle_set(Spindle spindle, SpindleStatus status, SpindleFeedType feedtype, double value);
-   
-#define PICKOFF 1
-#define DEFAULT 0
-void cnc_cutoff(double feedrate, unsigned flags);
-void cnc_begin_thread(unsigned id);
-void cnc_end_thread();
-void cnc_faceoff_material(double length);
-void cnc_select_tool(unsigned tool_id);
-void cnc_set_program_number(unsigned number);
-void cnc_set_standard_machining_data();
-
-#define cnc_move(...) vrg(cnc_move, __VA_ARGS__)
-#define cnc_move4(f, t, a, am) cnc_moveX(f, t, a, am, NONE, 0)
-#define cnc_move6(f, t, a, am, b, bm) cnc_moveX(f, t, a, am, b, bm)
-#define RAPID -10000.0
-void cnc_moveX(double feedrate, MovementType type, Axis a, double a_movement, Axis b, double b_movement);
-
-#ifdef CNC_IMPLEMENTATION
 
 const char* RelayNames[] = {FOREACH_RELAY(str)};
 void cnc_toggle(Relay relay, bool state){
@@ -161,6 +134,12 @@ void cnc_sleep(double seconds){
    printf("G04U%.3f\r\n", seconds);
 }
 
+#define RAPID -10000.0
+
+#define cnc_move(...) vrg(cnc_move, __VA_ARGS__)
+#define cnc_move4(f, t, a, am) cnc_moveX(f, t, a, am, NONE, 0)
+#define cnc_move6(f, t, a, am, b, bm) cnc_moveX(f, t, a, am, b, bm)
+
 void cnc_moveX(double feedrate, MovementType type, Axis a, double a_movement, Axis b, double b_movement){
    printf(feedrate == RAPID ? "G0" : "G1"); 
 
@@ -174,6 +153,7 @@ void cnc_moveX(double feedrate, MovementType type, Axis a, double a_movement, Ax
    printf("\r\n");
 }
 
+#define ALLOW_OVERSIZE_MILL 1
 void cnc_mill_hex(
    double mill_speed, double mill_diameter, double width_across_flats, double length, unsigned flags
 ){
@@ -215,7 +195,14 @@ void cnc_mill_hex(
   */ 
 }
 
-void cnc_cutoff(double feedrate, unsigned flags){
+#define PICKOFF 1
+#define DEFAULT 0
+
+#define cnc_cutoff(...) vrg(cnc_cutoff, __VA_ARGS__)
+#define cnc_cutoff1(f) cnc_cutoffX(f, DEFAULT)
+#define cnc_cutoff2(f, flags) cnc_cutoffX(f, flags)
+
+void cnc_cutoffX(double feedrate, unsigned flags){
    //cutoff tool must be called before calling cnc_cutoff
 
    printf( "\r\n(CUTOFF BEGIN)\r\n");
@@ -264,8 +251,22 @@ void cnc_set_standard_machining_data(){
    );
 }
 
-void cnc_faceoff_material(double length){
-   printf("(TODO: add code for facing off the material)\r\n\r\n)"); 
+void cnc_select_tool(unsigned tool_id){
+   printf("\r\n(Calling up tool %i)\r\n", tool_id);
+   printf("T%02d00\r\n\r\n", tool_id);
+}
+
+void cnc_faceoff_material(double feedrate, double length){
+   printf("\r\n(FACEOFF BEGIN)\r\n"); 
+   
+   cnc_toggle(oil, true);
+   cnc_toggle(chuck_main, false);
+   cnc_move(RAPID, absolute, Z, -length);
+   cnc_toggle(chuck_main, true);
+   cnc_move(RAPID, absolute, Z, -0.005);
+   cnc_move(0.001, absolute, Z, 0);
+   cnc_cutoff(feedrate);
+   printf("(FACEOFF END)\r\n\r\n"); 
 }
 
 void cnc_begin_thread(unsigned id){
@@ -285,11 +286,6 @@ void cnc_end_thread(){
    printf("M30\r\n");
 }
 
-void cnc_select_tool(unsigned tool_id){
-   printf("\r\n(Calling up tool %i)\r\n", tool_id);
-   printf("T%02d00\r\n\r\n", tool_id);
-}
-
 void cnc_set_program_number(unsigned number){
    if(number < 1 || number > 8999){
       fprintf(stderr, "invalid program number chosen");
@@ -297,5 +293,3 @@ void cnc_set_program_number(unsigned number){
    }
    printf("%%\r\n(Setting program number)\r\nO%d\r\n", number);
 }
-
-#endif
