@@ -3,7 +3,6 @@
 #include <stdarg.h>
 #include <stdlib.h> 
 #include "vrg.h"
-
 #define FOREACH_RELAY(func) \
    func(chuck_main) \
    func(chuck_back) \
@@ -148,77 +147,6 @@ void cnc_moveX(double feedrate, MovementType type, Axis a, double a_movement, Ax
 #define cnc_move4(f, t, a, am) cnc_moveX(f, t, a, am, NONE, 0)
 #define cnc_move6(f, t, a, am, b, bm) cnc_moveX(f, t, a, am, b, bm)
 
-/*
-#define DEFAULT 0
-#define RAPID 1
-#define RELATIVE 2
-#define CUT 4
-#define SKIP_NEWLINE 8
-void cnc_move(double x, double y, double z, unsigned flags){ 
-
-   unsigned index = 0;
-   struct {
-      char id;
-      double value;
-   } axis[3]; 
-   
-   if(x != 0){
-      axis[index].id = 'X';
-      axis[index].value = x;
-      ++index;
-   }
-   
-   if(y != 0){
-      axis[index].id = 'Y';
-      axis[index].value = y;
-      ++index;
-   }
-
-   if(z != 0){
-      axis[index].id = 'Z';
-      axis[index].value = z;
-      ++index;
-   }
-
-   //Error checking
-   if(index == 0){
-      fprintf(stderr, "ERROR: cnc_move instruction doesn't move anything.\n");
-      exit(1);
-   }
-
-
-   if(index > 2){
-      fprintf(stderr, "ERROR: maximum of 2 axis may be moved at a time.\n");
-      exit(1);
-   }
-
-   //relative movement
-   for(int i = 0; i < index; ++i){
-      if(flags & RELATIVE) 
-         axis[i].id -= 3;
-   }
-
-   //main output
-   printf("G%i ", flags & RAPID);
-   for(int i = 0; i < index; ++i){
-      printf("%c%.3f ", axis[i].id, axis[i].value);
-   }
-
-   if(!(flags & SKIP_NEWLINE)){
-      printf("\r\n");
-   }
-   
-}
-
-void cnc_turn(double x, double y, double z, double feedrate, unsigned flags){ 
-   printf("G98 ");
-   cnc_move(x, y, z, flags | SKIP_NEWLINE);
-   printf("F %.3f", feedrate);
-   printf("\r\n");
-}
-
-*/
-
 #define ALLOW_OVERSIZED_MILL 1
 void cnc_mill_hex(
    double mill_speed, double mill_diameter, double width_across_flats, double length, unsigned flags
@@ -278,7 +206,6 @@ void cnc_cutoff(double feedrate, unsigned flags){
 
    //cnc_turn(-.010, 0, 0, feedrate, DEFAULT);
    //TODO add different tool movement function
-
    cnc_spindle_set(spindle_main, stop, 0, 0);
    cnc_toggle(interference_check, false);
 
@@ -326,7 +253,7 @@ void cnc_begin_thread(unsigned id){
    printf("\r\n(");;
    printf(id == 1 ? "main" : "sub");
    printf(" spindle program begin)\r\n");
-   printf("$%i\r\n\r\n", id);
+   printf("$%i\r\n", id);
 }
 
 void cnc_select_tool(unsigned tool_id){
