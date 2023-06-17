@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <stdlib.h> 
 #include <stddef.h>
+#include <float.h>
 
 #define FOREACH_RELAY(func) \
    func(chuck_main) \
@@ -29,12 +30,7 @@ typedef struct {
    double milling_speed;
 } Material;
 
-const Material STAINLESS_303 = {
-   .turning_speed = 0.001,
-   .cutoff_speed = 0.001,
-   .drilling_speed = 0.001,
-   .milling_speed = 0.001,
-};
+const Material STAINLESS_303 = { .turning_speed = 0.001, .cutoff_speed = 0.001, .drilling_speed = 0.001, .milling_speed = 0.001, };
 
 typedef enum {
    spindle_main,
@@ -68,7 +64,7 @@ typedef enum {
    NONE = 0
 } Axis;
 
-void cnc_toggle(Relay relay, bool state = true){
+void cnc_toggle(Relay relay, bool state){
    printf("\r\n(%s toggled %s)\r\n", RelayNames[relay], state ? "on" : "off");
    switch(relay) {
       case chuck_main:           state ? printf("M06\r\n" ) : printf("M07\r\n"); break;
@@ -110,12 +106,13 @@ void cnc_spindle_set(Spindle spindle, SpindleStatus status, SpindleFeedType feed
    }
 }
 
-void cnc_sleep(double seconds = 0.2){
+void cnc_sleep(double seconds){
    printf("G04U%.3f\r\n", seconds);
 }
 
-#define RAPID -10000.0
-void cnc_move(double feedrate, Axis a, double a_movement, Axis b = NONE, double b_movement = 0){
+#define RAPID FLT_MIN_EXP
+
+void cnc_move_dual(Axis a, double a_movement, Axis b, double b_movement, double feedrate){
    printf(feedrate == RAPID ? "G0" : "G1"); 
 
    printf(" %c %.3f", a, a_movement);
@@ -126,6 +123,10 @@ void cnc_move(double feedrate, Axis a, double a_movement, Axis b = NONE, double 
       printf(" F%.3f", feedrate);
    }   
    printf("\r\n");
+}
+
+void cnc_move(Axis axis, double distance, double feedrate){
+   cnc_move_dual(axis, distance, NONE, 0, feedrate);
 }
 
 #define ALLOW_OVERSIZE_MILL 1
@@ -169,9 +170,9 @@ void cnc_mill_hex( double mill_speed, double mill_diameter, double width_across_
 }
 
 //cutoff tool must be called before calling cnc_cutoff
-void cnc_cutoff(double feedrate, bool pickoff = false){
+void cnc_cutoff(double cutting_speed, double spindle_speed, bool pickoff){
 
-   cnc_spindle_set(spindle_main, forward, per_minute, feedrate);
+   cnc_spindle_set(spindle_main, forward, per_minute, spindle_speed);
    cnc_toggle(interference_check, false);
    
    if(pickoff){
@@ -180,7 +181,7 @@ void cnc_cutoff(double feedrate, bool pickoff = false){
       printf("!2L650\r\n");
    }
 
-   cnc_move(feedrate, X_ABS, -0.10);
+   cnc_move(X_ABS, -0.10, cutting_speed);
    //cnc_spindle_set(spindle_main, stop, 0, 0);
    cnc_toggle(interference_check, true);
 
@@ -190,14 +191,42 @@ void cnc_cutoff(double feedrate, bool pickoff = false){
    }
 }
 
+typedef enum {
+   left,
+   right,
+   both
+} Direction;
+
+void cnc_chamfer(double size, double cutting_speed, double spindle_speed, Direction side){
+
+   printf("\r\n(Chamfering edge)\r\n");
+   cnc_spindle_set(spindle_main, forward, per_minute, spindle_speed);
+   
+   if(side == left || side == both){
+      cnc_move(X_REL, -0.2, RAPID); //move tool away from material
+      cnc_move(Z_REL, -size, RAPID);
+      cnc_move(X_REL, 0.2, RAPID); //move tool away from material
+      cnc_move_dual(X_REL, size, Z_REL, size, cutting_speed);
+   }
+
+   if(side == right || side == both){
+      cnc_move(X_REL, -0.2, RAPID); //move tool away from material
+      cnc_move(Z_REL, size, RAPID);
+      cnc_move(X_REL, 0.2, RAPID); //move tool away from material
+      cnc_move_dual(X_REL, size, Z_REL, size, cutting_speed);
+   }
+
+   cnc_spindle_set(spindle_main, stop, 0, 0);
+}
+
 void cnc_sub_spindle_pickoff(double distance_from_zero){
    printf("(pickoff)\r\n");
    cnc_toggle(chuck_back, false);
-   cnc_move(RAPID, Z_ABS, distance_from_zero);
-   cnc_sleep();
+   cnc_move(Z_ABS, distance_from_zero, RAPID);
+   cnc_sleep(0.2);
    cnc_toggle(chuck_back, true);
-   cnc_sleep();
-   cnc_move(RAPID, Z_REL, -1);
+   cnc_sleep(0.2);
+   cnc_move(Z_REL, -1, RAPID);
 }
 
 void cnc_set_standard_machining_data(){
@@ -228,18 +257,18 @@ void cnc_select_tool(unsigned tool_id){
    printf("T%02d00\r\n", tool_id);
 }
 
-void cnc_faceoff_material(double feedrate, double length){
+void cnc_faceoff_material(double cutting_speed, double spindle_speed, double length){
    printf("\r\n(faceoff)\r\n"); 
    
    cnc_toggle(oil, true);
    cnc_toggle(chuck_main, false);
-   cnc_move(RAPID, Z_ABS, -length);
-   cnc_sleep();
+   cnc_move(Z_ABS, -length, RAPID);
+   cnc_sleep(0.2);
    cnc_toggle(chuck_main, true);
-   cnc_sleep();
-   cnc_move(RAPID, Z_ABS, -0.005);
-   cnc_move(0.001, Z_ABS, 0);
-   cnc_cutoff(feedrate);
+   cnc_sleep(0.2);
+   cnc_move(Z_ABS, -0.005, RAPID);
+   cnc_move(Z_ABS, 0, 0.001);
+   cnc_cutoff(cutting_speed, spindle_speed, false);
 }
 
 void cnc_begin_thread(unsigned id){
