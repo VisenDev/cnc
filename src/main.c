@@ -11,7 +11,6 @@ int main(){
 
    cnc_move(X_ABS, .5, RAPID);
    cnc_move(Z_ABS, 1.0, RAPID);
-   cnc_chamfer(.005, STAINLESS_303.turning_speed, SPINDLE_SPEED, both);
    cnc_cutoff(STAINLESS_303.cutoff_speed, SPINDLE_SPEED, true);
    
    cnc_move(X_ABS, .5, RAPID);

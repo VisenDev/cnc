@@ -129,11 +129,76 @@ void cnc_move(Axis axis, double distance, double feedrate){
    cnc_move_dual(axis, distance, NONE, 0, feedrate);
 }
 
-#define ALLOW_OVERSIZE_MILL 1
-void cnc_mill_hex( double mill_speed, double mill_diameter, double width_across_flats, double length, unsigned flags){
-//   cnc_spindle_set(spindle_main, stop, 0, 0);
- //  cnc_spindle_set(spindle_tool, forward, per_minute, mill_speed);
-  // cnc_spindle_rotate(spindle_main, 30);
+//for keeping records of what is currently being indexed
+struct {
+   bool spindle_main;
+   bool spindle_back;
+} indexing_status = {false , false};
+
+void cnc_spindle_indexing_stop(Spindle spindle){
+   switch(spindle){
+      case spindle_main:
+         indexing_status.spindle_main = false;
+         printf("M20\r\n");
+      case spindle_back:
+         indexing_status.spindle_back = false;
+         printf("M79\r\n");
+      default:
+         fprintf(stderr, "Tool spindle indexing cannot be stopped, exiting...\r\n");
+         exit(1);
+   }
+}
+
+void cnc_spindle_indexing_begin_angle(Spindle spindle, unsigned starting_rotation){
+   switch(spindle){
+      case spindle_main:
+         cnc_spindle_set(spindle_main, stop, 0, 0);
+         indexing_status.spindle_main = true;
+         printf("M28 S%d\r\n", starting_rotation);
+         break;
+      case spindle_back:
+         cnc_spindle_set(spindle_back, stop, 0, 0);
+         indexing_status.spindle_back = true;
+         printf("M78 S%d\r\n", starting_rotation);
+         break;
+      default:
+         fprintf(stderr, "Tool spindle cannot be indexed, exiting");
+         exit(1);
+   }
+}
+
+void cnc_spindle_indexing_begin(Spindle spindle){
+   cnc_spindle_indexing_begin_angle(spindle, 0);
+}
+
+void cnc_spindle_index(Spindle spindle, unsigned degrees){
+   switch(spindle){
+      case spindle_main:
+         if(indexing_status.spindle_main){
+            printf("M18 C%d", degrees);
+         } else {
+            fprintf(stderr, "Main spindle is not in indexing mode, exiting...");
+            exit(1);
+         }
+      case spindle_back:
+         if(indexing_status.spindle_back){
+            printf("M48 C%d", degrees);
+         } else {
+            fprintf(stderr, "Back spindle is not in indexing mode, exiting...");
+            exit(1);
+         }
+      default:
+         fprintf(stderr, "tool spindle cannot be indexed, exiting");
+         exit(1);
+   }
+}
+
+void cnc_mill_hex(unsigned mill_id, double milling_speed, double mill_diameter, double width_across_flats, double length_of_flats){
+   //TODO add error checking to make sure the tool spindle is called up and is currently rotating
+   cnc_spindle_set(spindle_main, stop, 0, 0);
+   cnc_spindle_indexing_begin_angle(spindle_main, 30);
+
+
 /*
    "(MILL HEX)\r\n"
    "M5\r\n"
@@ -281,6 +346,10 @@ void cnc_begin_thread(unsigned id){
    printf(id == 1 ? "main" : "sub");
    printf(" spindle program begin)\r\n");
    printf("$%i\r\n", id);
+}
+
+void cnc_sync_threads(unsigned id){
+   //TODO add support for syncing the main and back spindle threads
 }
 
 void cnc_end_thread(){
