@@ -64,6 +64,7 @@ typedef enum {
    NONE = 0
 } Axis;
 
+//toggle a machine function on or off
 void cnc_toggle(Relay relay, bool state){
    printf("\r\n(%s toggled %s)\r\n", RelayNames[relay], state ? "on" : "off");
    switch(relay) {
@@ -80,6 +81,7 @@ void cnc_toggle(Relay relay, bool state){
    }
 }
 
+//update rotation of spindle
 void cnc_spindle_set(Spindle spindle, SpindleStatus status, SpindleFeedType feedtype, double feedrate){
    
    switch(spindle){
@@ -106,12 +108,20 @@ void cnc_spindle_set(Spindle spindle, SpindleStatus status, SpindleFeedType feed
    }
 }
 
+//pause program execution for the specified amount of seconds
 void cnc_sleep(double seconds){
    printf("G04U%.3f\r\n", seconds);
 }
 
+//set maximum z travel at the beginning of program
+void cnc_max_z_travel(double distance){
+   printf("(MAXIMUM Z TRAVEL)\r\n");
+   printf("G50 Z%.3f", distance);
+}
+
 #define RAPID FLT_MIN_EXP
 
+//move two axis at the same time
 void cnc_move_dual(Axis a, double a_movement, Axis b, double b_movement, double feedrate){
    printf(feedrate == RAPID ? "G0" : "G1"); 
 
@@ -125,6 +135,7 @@ void cnc_move_dual(Axis a, double a_movement, Axis b, double b_movement, double 
    printf("\r\n");
 }
 
+//move one axis
 void cnc_move(Axis axis, double distance, double feedrate){
    cnc_move_dual(axis, distance, NONE, 0, feedrate);
 }
@@ -135,6 +146,7 @@ struct {
    bool spindle_back;
 } indexing_status = {false , false};
 
+//stop indexing mode for the selected spindle
 void cnc_spindle_indexing_stop(Spindle spindle){
    switch(spindle){
       case spindle_main:
@@ -149,6 +161,7 @@ void cnc_spindle_indexing_stop(Spindle spindle){
    }
 }
 
+//begin indexing the chosen spindle at given angle
 void cnc_spindle_indexing_begin_angle(Spindle spindle, unsigned starting_rotation){
    switch(spindle){
       case spindle_main:
@@ -167,10 +180,12 @@ void cnc_spindle_indexing_begin_angle(Spindle spindle, unsigned starting_rotatio
    }
 }
 
+//begin spindle indexing without specifying angle (defaults to 0)
 void cnc_spindle_indexing_begin(Spindle spindle){
    cnc_spindle_indexing_begin_angle(spindle, 0);
 }
 
+//index the spindle to absolute angle
 void cnc_spindle_index(Spindle spindle, unsigned degrees){
    switch(spindle){
       case spindle_main:
@@ -193,6 +208,7 @@ void cnc_spindle_index(Spindle spindle, unsigned degrees){
    }
 }
 
+//mills a hex
 void cnc_mill_hex(unsigned mill_id, double milling_speed, double mill_diameter, double width_across_flats, double length_of_flats){
    //TODO add error checking to make sure the tool spindle is called up and is currently rotating
    cnc_spindle_set(spindle_main, stop, 0, 0);
@@ -262,6 +278,7 @@ typedef enum {
    both
 } Direction;
 
+//chamfers a corner that the tool is currently adjacent to
 void cnc_chamfer(double size, double cutting_speed, double spindle_speed, Direction side){
 
    printf("\r\n(Chamfering edge)\r\n");
@@ -284,6 +301,7 @@ void cnc_chamfer(double size, double cutting_speed, double spindle_speed, Direct
    cnc_spindle_set(spindle_main, stop, 0, 0);
 }
 
+//TODO finish this function at spindle syncronization
 void cnc_sub_spindle_pickoff(double distance_from_zero){
    printf("(pickoff)\r\n");
    cnc_toggle(chuck_back, false);
@@ -294,6 +312,7 @@ void cnc_sub_spindle_pickoff(double distance_from_zero){
    cnc_move(Z_REL, -1, RAPID);
 }
 
+//TODO finish this function
 void cnc_set_standard_machining_data(){
    printf(
       "\r\n"
@@ -317,11 +336,14 @@ void cnc_set_standard_machining_data(){
    );
 }
 
+//call up a tool
+//TODO fingure out how offsets work
 void cnc_select_tool(unsigned tool_id){
    printf("\r\n(Calling up tool %i)\r\n", tool_id);
    printf("T%02d00\r\n", tool_id);
 }
 
+//faceoff the material for a chucker A20 at given speed
 void cnc_faceoff_material(double cutting_speed, double spindle_speed, double length){
    printf("\r\n(faceoff)\r\n"); 
    
@@ -336,6 +358,8 @@ void cnc_faceoff_material(double cutting_speed, double spindle_speed, double len
    cnc_cutoff(cutting_speed, spindle_speed, false);
 }
 
+//TODO rename these functions to avoid confusion with threading
+//begin an A20 thread
 void cnc_begin_thread(unsigned id){
    if(id != 1 && id != 2){
       fprintf(stderr, "invalid id passed to cnc_begin_thread, valid values are: 1, 2\n");
@@ -357,6 +381,7 @@ void cnc_end_thread(){
    printf("M30\r\n");
 }
 
+//Set the program number at the beginning of the program
 void cnc_set_program_number(unsigned number){
    if(number < 1 || number > 8999){
       fprintf(stderr, "invalid program number chosen");
