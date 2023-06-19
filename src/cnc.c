@@ -5,6 +5,9 @@
 #include <stddef.h>
 #include <float.h>
 
+//newline delimiter
+#define NL "\r\n"
+
 #define FOREACH_RELAY(func) \
    func(chuck_main) \
    func(chuck_back) \
@@ -66,19 +69,20 @@ typedef enum {
 
 //toggle a machine function on or off
 void cnc_toggle(Relay relay, bool state){
-   printf("\r\n(%s toggled %s)\r\n", RelayNames[relay], state ? "on" : "off");
+   printf("\r\n(%s %s)" NL, RelayNames[relay], state ? "on" : "off");
    switch(relay) {
-      case chuck_main:           state ? printf("M06\r\n" ) : printf("M07\r\n"); break;
-      case chuck_back:           state ? printf("M16\r\n" ) : printf("M17\r\n"); break;
-      case knock_out:            state ? printf("M10\r\n" ) : printf("M11\r\n"); break;
-      case oil:                  state ? printf("M52\r\n" ) : printf("M53\r\n"); break;
-      case part_counter:                 printf("M56\r\n" ) ;                    break;
-      case check_tool_break:             printf("M51\r\n" ) ;                    break;
-      case part_chute:           state ? printf("M32\r\n" ) : printf("M33\r\n"); break;
-      case interference_check:   state ? printf("M89\r\n" ) : printf("M88\r\n"); break;
-      case sync_spindles:        state ? printf("G814\r\n") : printf("G813\r\n"); break;
-      case pickoff_support:      state ? printf("G650\r\n") : printf("G600\r\n"); break;
+      case chuck_main:           state ? printf("M06" ) : printf("M07");  break;
+      case chuck_back:           state ? printf("M16" ) : printf("M17");  break;
+      case knock_out:            state ? printf("M10" ) : printf("M11");  break;
+      case oil:                  state ? printf("M52" ) : printf("M53");  break;
+      case part_counter:                 printf("M56" ) ;                 break;
+      case check_tool_break:             printf("M51" ) ;                 break;
+      case part_chute:           state ? printf("M32" ) : printf("M33");  break;
+      case interference_check:   state ? printf("M89" ) : printf("M88");  break;
+      case sync_spindles:        state ? printf("G814") : printf("G813"); break;
+      case pickoff_support:      state ? printf("G650") : printf("G600"); break;
    }
+   printf(NL);
 }
 
 //update rotation of spindle
@@ -87,36 +91,36 @@ void cnc_spindle_set(Spindle spindle, SpindleStatus status, SpindleFeedType feed
    switch(spindle){
    case spindle_main:
       switch(status){
-         case forward: printf("M3 S1=%.3f %s\r\n", feedrate, feedtype == per_minute ? "G98" : "G99"); break;
-         case reverse: printf("M4 S1=%.3f %s\r\n", feedrate, feedtype == per_minute ? "G98" : "G99"); break;
-         case stop: printf("M5\r\n"); break;
+         case forward: printf("M3 S1=%.3f %s"NL, feedrate, feedtype == per_minute ? "G98" : "G99"); break;
+         case reverse: printf("M4 S1=%.3f %s"NL, feedrate, feedtype == per_minute ? "G98" : "G99"); break;
+         case stop: printf("M5"NL); break;
       }
       break;
    case spindle_back:
       switch(status){
-         case forward: printf("M23 S2=%.3f %s\r\n", feedrate, feedtype == per_minute ? "G98" : "G99"); break;
-         case reverse: printf("M24 S2=%.3f %s\r\n", feedrate, feedtype == per_minute ? "G98" : "G99"); break;
-         case stop: printf("M25\r\n"); break;
+         case forward: printf("M23 S2=%.3f %s"NL, feedrate, feedtype == per_minute ? "G98" : "G99"); break;
+         case reverse: printf("M24 S2=%.3f %s"NL, feedrate, feedtype == per_minute ? "G98" : "G99"); break;
+         case stop: printf("M25"NL); break;
       }
       break;
    case spindle_tool:
       switch(status){
-         case forward: printf("%s\r\n M80 S%.3f\r\n", feedtype == per_minute ? "G98" : "G99", feedrate); break;
-         case reverse: printf("%s\r\nM81 S%.3f\r\n", feedtype == per_minute ? "G98" : "G99", feedrate); break;
-         case stop: printf("M82\r\n");
+         case forward: printf("%s\r\n M80 S%.3f" NL, feedtype == per_minute ? "G98" : "G99", feedrate); break;
+         case reverse: printf("%s\r\nM81 S%.3f" NL, feedtype == per_minute ? "G98" : "G99", feedrate); break;
+         case stop: printf("M82" NL);
       }
    }
 }
 
 //pause program execution for the specified amount of seconds
 void cnc_sleep(double seconds){
-   printf("G04U%.3f\r\n", seconds);
+   printf("G04U%.3f" NL, seconds);
 }
 
 //set maximum z travel at the beginning of program
 void cnc_max_z_travel(double distance){
-   printf("(MAXIMUM Z TRAVEL)\r\n");
-   printf("G50 Z%.3f", distance);
+   printf("(MAXIMUM Z TRAVEL)" NL);
+   printf("G50 Z%.4g" NL, distance);
 }
 
 #define RAPID FLT_MIN_EXP
@@ -125,14 +129,14 @@ void cnc_max_z_travel(double distance){
 void cnc_move_dual(Axis a, double a_movement, Axis b, double b_movement, double feedrate){
    printf(feedrate == RAPID ? "G0" : "G1"); 
 
-   printf(" %c %.3f", a, a_movement);
+   printf(" %c %.4g", a, a_movement);
    if(b != NONE){
-      printf("%c %.3f", b, b_movement);
+      printf("%c %.4g", b, b_movement);
    }
    if(feedrate != RAPID){
-      printf(" F%.3f", feedrate);
+      printf(" F%.4g", feedrate);
    }   
-   printf("\r\n");
+   printf("" NL);
 }
 
 //move one axis
@@ -151,12 +155,12 @@ void cnc_spindle_indexing_stop(Spindle spindle){
    switch(spindle){
       case spindle_main:
          indexing_status.spindle_main = false;
-         printf("M20\r\n");
+         printf("M20" NL);
       case spindle_back:
          indexing_status.spindle_back = false;
-         printf("M79\r\n");
+         printf("M79" NL);
       default:
-         fprintf(stderr, "Tool spindle indexing cannot be stopped, exiting...\r\n");
+         fprintf(stderr, "Tool spindle indexing cannot be stopped, exiting..." NL);
          exit(1);
    }
 }
@@ -167,12 +171,12 @@ void cnc_spindle_indexing_begin_angle(Spindle spindle, unsigned starting_rotatio
       case spindle_main:
          cnc_spindle_set(spindle_main, stop, 0, 0);
          indexing_status.spindle_main = true;
-         printf("M28 S%d\r\n", starting_rotation);
+         printf("M28 S%d" NL, starting_rotation);
          break;
       case spindle_back:
          cnc_spindle_set(spindle_back, stop, 0, 0);
          indexing_status.spindle_back = true;
-         printf("M78 S%d\r\n", starting_rotation);
+         printf("M78 S%d" NL, starting_rotation);
          break;
       default:
          fprintf(stderr, "Tool spindle cannot be indexed, exiting");
@@ -216,37 +220,37 @@ void cnc_mill_hex(unsigned mill_id, double milling_speed, double mill_diameter, 
 
 
 /*
-   "(MILL HEX)\r\n"
-   "M5\r\n"
-   "G98\r\n"
-   "M80S3000\r\n"
-   "M28S30\r\n"
-   "T0808X1.0Y1.0\r\n"
-   "G50W-.395\r\n"
-   "G0X.3095Z1.0\r\n"
-   "G1Y-1.0F10.0\r\n"
-   "G1Y1.0F90.0\r\n"
-   "M28H60\r\n"
-   "G1Y-1.0F10.0\r\n"
-   "G1Y1.0F90.0\r\n"
-   "M28H60\r\n"
-   "G1Y-1.0F10.0\r\n"
-   "G1Y1.0F90.0\r\n"
-   "M28H60\r\n"
-   "G1Y-1.0F10.0\r\n"
-   "G1Y1.0F90.0\r\n"
-   "M28H60\r\n"
-   "G1Y-1.0F10.0\r\n"
-   "G1Y1.0F90.0\r\n"
-   "M28H60\r\n"
-   "G1Y-1.0F10.0\r\n"
-   "G1Y1.0F90.0\r\n"
-   "G0X.347\r\n"
-   "G1H360.0F3000\r\n"
-   "G50W.395\r\n"
-   "G0X1.0\r\n"
-   "M82\r\n"
-   "G99\r\n"
+   "(MILL HEX)" NL
+   "M5" NL
+   "G98" NL
+   "M80S3000" NL
+   "M28S30" NL
+   "T0808X1.0Y1.0" NL
+   "G50W-.395" NL
+   "G0X.3095Z1.0" NL
+   "G1Y-1.0F10.0" NL
+   "G1Y1.0F90.0" NL
+   "M28H60" NL
+   "G1Y-1.0F10.0" NL
+   "G1Y1.0F90.0" NL
+   "M28H60" NL
+   "G1Y-1.0F10.0" NL
+   "G1Y1.0F90.0" NL
+   "M28H60" NL
+   "G1Y-1.0F10.0" NL
+   "G1Y1.0F90.0" NL
+   "M28H60" NL
+   "G1Y-1.0F10.0" NL
+   "G1Y1.0F90.0" NL
+   "M28H60" NL
+   "G1Y-1.0F10.0" NL
+   "G1Y1.0F90.0" NL
+   "G0X.347" NL
+   "G1H360.0F3000" NL
+   "G50W.395" NL
+   "G0X1.0" NL
+   "M82" NL
+   "G99" NL
   */ 
 }
 
@@ -259,7 +263,7 @@ void cnc_cutoff(double cutting_speed, double spindle_speed, bool pickoff){
    if(pickoff){
       cnc_toggle(sync_spindles, true);
       cnc_toggle(pickoff_support, true);
-      printf("!2L650\r\n");
+      printf("!2L650" NL);
    }
 
    cnc_move(X_ABS, -0.10, cutting_speed);
@@ -281,7 +285,7 @@ typedef enum {
 //chamfers a corner that the tool is currently adjacent to
 void cnc_chamfer(double size, double cutting_speed, double spindle_speed, Direction side){
 
-   printf("\r\n(Chamfering edge)\r\n");
+   printf("\r\n(Chamfering edge)" NL);
    cnc_spindle_set(spindle_main, forward, per_minute, spindle_speed);
    
    if(side == left || side == both){
@@ -303,7 +307,7 @@ void cnc_chamfer(double size, double cutting_speed, double spindle_speed, Direct
 
 //TODO finish this function at spindle syncronization
 void cnc_sub_spindle_pickoff(double distance_from_zero){
-   printf("(pickoff)\r\n");
+   printf("(pickoff)" NL);
    cnc_toggle(chuck_back, false);
    cnc_move(Z_ABS, distance_from_zero, RAPID);
    cnc_sleep(0.2);
@@ -315,37 +319,37 @@ void cnc_sub_spindle_pickoff(double distance_from_zero){
 //TODO finish this function
 void cnc_set_standard_machining_data(){
    printf(
-      "\r\n"
-      "(Setting Machining Data)\r\n"
-      "\r\n"
-      "$0\r\n"
-      "D\r\n"
-      "#016=0000003750\r\n"
-      "#020=0000001000\r\n"
-      "#024=0000018000\r\n"
-      "#028=0000001000\r\n"
-      "#032=0000004000\r\n"
-      "#036=0002500000\r\n"
-      "#040=0000000010\r\n"
-      "#044=-000001000\r\n"
-      "#048=0000011000\r\n"
-      "#052=0000002000\r\n"
-      "#064=0000201000\r\n"
-      "#068=0000000000\r\n"
-      "%%\r\n"
+      "" NL
+      "(Setting Machining Data)" NL
+      "" NL
+      "$0" NL
+      "D" NL
+      "#016=0000003750" NL
+      "#020=0000001000" NL
+      "#024=0000018000" NL
+      "#028=0000001000" NL
+      "#032=0000004000" NL
+      "#036=0002500000" NL
+      "#040=0000000010" NL
+      "#044=-000001000" NL
+      "#048=0000011000" NL
+      "#052=0000002000" NL
+      "#064=0000201000" NL
+      "#068=0000000000" NL
+      "%%" NL
    );
 }
 
 //call up a tool
 //TODO fingure out how offsets work
 void cnc_select_tool(unsigned tool_id){
-   printf("\r\n(Calling up tool %i)\r\n", tool_id);
-   printf("T%02d00\r\n", tool_id);
+   printf("\r\n(Calling up tool %i)" NL, tool_id);
+   printf("T%02d00" NL, tool_id);
 }
 
 //faceoff the material for a chucker A20 at given speed
 void cnc_faceoff_material(double cutting_speed, double spindle_speed, double length){
-   printf("\r\n(faceoff)\r\n"); 
+   printf("\r\n(faceoff)" NL); 
    
    cnc_toggle(oil, true);
    cnc_toggle(chuck_main, false);
@@ -368,8 +372,8 @@ void cnc_begin_thread(unsigned id){
    
    printf("\r\n(");;
    printf(id == 1 ? "main" : "sub");
-   printf(" spindle program begin)\r\n");
-   printf("$%i\r\n", id);
+   printf(" spindle program begin)" NL);
+   printf("$%i" NL, id);
 }
 
 void cnc_sync_threads(unsigned id){
@@ -377,8 +381,8 @@ void cnc_sync_threads(unsigned id){
 }
 
 void cnc_end_thread(){
-   printf("(End of Program)\r\n");
-   printf("M30\r\n");
+   printf("(End of Program)" NL);
+   printf("M2" NL);
 }
 
 //Set the program number at the beginning of the program
@@ -387,5 +391,5 @@ void cnc_set_program_number(unsigned number){
       fprintf(stderr, "invalid program number chosen");
       exit(1);
    }
-   printf("%%\r\n(Setting program number)\r\nO%d\r\n", number);
+   printf("%%\r\n(Setting program number)\r\nO%d" NL, number);
 }
