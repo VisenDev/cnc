@@ -114,7 +114,7 @@ void cnc_spindle_set(Spindle spindle, SpindleStatus status, SpindleFeedType feed
 
 //pause program execution for the specified amount of seconds
 void cnc_sleep(double seconds){
-   printf("G04U%.3f" NL, seconds);
+   printf("G04U%.3g" NL, seconds);
 }
 
 //set maximum z travel at the beginning of program
@@ -258,21 +258,21 @@ void cnc_mill_hex(unsigned mill_id, double milling_speed, double mill_diameter, 
 void cnc_cutoff(double cutting_speed, double spindle_speed, bool pickoff){
 
    cnc_spindle_set(spindle_main, forward, per_minute, spindle_speed);
-   cnc_toggle(interference_check, false);
    
    if(pickoff){
       cnc_toggle(sync_spindles, true);
       cnc_toggle(pickoff_support, true);
+      cnc_toggle(interference_check, false);
+      //TODO Update this sync
       printf("!2L650" NL);
    }
 
    cnc_move(X_ABS, -0.10, cutting_speed);
-   //cnc_spindle_set(spindle_main, stop, 0, 0);
-   cnc_toggle(interference_check, true);
 
    if(pickoff){
       cnc_toggle(sync_spindles, false);
       cnc_toggle(pickoff_support, false);
+      cnc_toggle(interference_check, true);
    }
 }
 
@@ -362,26 +362,29 @@ void cnc_faceoff_material(double cutting_speed, double spindle_speed, double len
    cnc_cutoff(cutting_speed, spindle_speed, false);
 }
 
-//TODO rename these functions to avoid confusion with threading
-//begin an A20 thread
-void cnc_begin_thread(unsigned id){
+//begin new program
+unsigned _current_program;
+void cnc_begin_program(unsigned id){
    if(id != 1 && id != 2){
       fprintf(stderr, "invalid id passed to cnc_begin_thread, valid values are: 1, 2\n");
       exit(1);
    }
    
-   printf("\r\n(");;
-   printf(id == 1 ? "main" : "sub");
-   printf(" spindle program begin)" NL);
+   //update internal records of program number
+   _current_program = id;
+   printf(NL "(");;
+   printf(id == 1 ? "MAIN" : "SUB");
+   printf(" PROGRAM)" NL);
    printf("$%i" NL, id);
 }
 
-void cnc_sync_threads(unsigned id){
+void cnc_sync_programs(unsigned id){
    //TODO add support for syncing the main and back spindle threads
+   printf("!L%d%d" NL, _current_program, id);
 }
 
-void cnc_end_thread(){
-   printf("(End of Program)" NL);
+void cnc_end_program(){
+   printf("(END OF PROGRAM)" NL);
    printf("M2" NL);
 }
 
@@ -391,5 +394,5 @@ void cnc_set_program_number(unsigned number){
       fprintf(stderr, "invalid program number chosen");
       exit(1);
    }
-   printf("%%\r\n(Setting program number)\r\nO%d" NL, number);
+   printf("%%\r\n(SETTING PROGRAM NUMBER)\r\nO%d" NL, number);
 }

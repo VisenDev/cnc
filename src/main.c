@@ -4,9 +4,9 @@ int main(){
    #define SPINDLE_SPEED 100.0
    cnc_set_program_number(1051);
    
-   cnc_begin_thread(1); 
+   cnc_begin_program(1); 
+   cnc_max_z_travel(1.100);
    cnc_select_tool(4);
-   cnc_toggle(oil, true);
    cnc_faceoff_material(STAINLESS_303.cutoff_speed, SPINDLE_SPEED, 0.055);
 
    cnc_move(X_ABS, .5, RAPID);
@@ -17,11 +17,11 @@ int main(){
    cnc_select_tool(27);
    cnc_move(Z_ABS, 0, RAPID);
    cnc_toggle(chuck_main, false);
-   cnc_end_thread();
+   cnc_end_program();
    
-   cnc_begin_thread(2); 
+   cnc_begin_program(2); 
    cnc_sub_spindle_pickoff(.75);
-   cnc_end_thread();
+   cnc_end_program();
    
    cnc_set_standard_machining_data();
    
