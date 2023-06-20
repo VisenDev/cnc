@@ -8,7 +8,7 @@
 #include <strings.h>
 
 void string_to_upper(char* str){
-   for(char* ptr = str; *ptr != '\0'; *ptr = toupper(*ptr), ++ptr);
+   for(char* ptr = str; *ptr != '\0'; *ptr = *ptr == '_' ? '-' : toupper(*ptr), ++ptr);
 }
 
 //newline delimiter
@@ -275,18 +275,18 @@ void cnc_cutoff(double cutting_speed, double spindle_speed, bool pickoff){
    cnc_spindle_set(spindle_main, forward, per_minute, spindle_speed);
    
    if(pickoff){
-      cnc_toggle(sync_spindles, true);
       cnc_toggle(pickoff_support, true);
       cnc_toggle(interference_check, false);
+      cnc_toggle(sync_spindles, true);
       cnc_sync_programs(650);
    }
 
    cnc_move(X_ABS, -0.10, cutting_speed);
 
    if(pickoff){
-      cnc_toggle(sync_spindles, false);
       cnc_toggle(pickoff_support, false);
       cnc_toggle(interference_check, true);
+      cnc_toggle(sync_spindles, false);
    }
 }
 
@@ -319,16 +319,18 @@ void cnc_chamfer(double size, double cutting_speed, double spindle_speed, Direct
    cnc_spindle_set(spindle_main, stop, 0, 0);
 }
 
-//TODO finish this function at spindle syncronization
 void cnc_sub_spindle_pickoff(double distance_from_zero){
    printf(NL "(PICKOFF)" NL);
    cnc_toggle(chuck_back, false);
-   cnc_move(Z_ABS, distance_from_zero, RAPID);
+   cnc_toggle(sync_spindles, true);
+   cnc_move(Z_ABS, -.500, RAPID);
+   cnc_move(Z_ABS, distance_from_zero, .001);
    cnc_sleep(0.2);
    cnc_toggle(chuck_back, true);
    cnc_sleep(0.2);
    cnc_sync_programs(650);
-   cnc_move(Z_REL, -1, RAPID);
+   cnc_toggle(sync_spindles, false);
+   cnc_move(Z_REL, -1.0, RAPID);
 }
 
 //TODO finish this function
@@ -357,9 +359,11 @@ void cnc_set_standard_machining_data(){
 
 //call up a tool
 //TODO fingure out how offsets work
-void cnc_select_tool(unsigned tool_id){
+void cnc_select_tool(unsigned tool_id, double x_position){
    printf("\r\n(CALL UP T%i)" NL, tool_id);
-   printf("T%02d%02d" NL, tool_id, tool_id);
+   cnc_move(Z_ABS, -0.050, RAPID);
+   printf("T%02d%02d X%.4g" NL, tool_id, tool_id, x_position);
+   cnc_move(Z_ABS, -0.050, RAPID);
 }
 
 //faceoff the material for a chucker A20 at given speed
@@ -399,6 +403,9 @@ void cnc_sync_programs(unsigned id){
 
 void cnc_end_program(){
    printf("(END OF PROGRAM)" NL);
+   printf("G999" NL);
+   cnc_toggle(oil, false);
+   printf("N999" NL);
    printf("M2" NL);
 }
 
@@ -409,4 +416,8 @@ void cnc_set_program_number(unsigned number){
       exit(1);
    }
    printf("%%\r\n(SET PRGM #)\r\nO%d" NL, number);
+}
+
+void cnc_reload(){
+   printf("/M108 R1" NL);
 }
