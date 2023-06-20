@@ -4,6 +4,12 @@
 #include <stdlib.h> 
 #include <stddef.h>
 #include <float.h>
+#include <ctype.h>
+#include <strings.h>
+
+void string_to_upper(char* str){
+   for(char* ptr = str; *ptr != '\0'; *ptr = toupper(*ptr), ++ptr);
+}
 
 //newline delimiter
 #define NL "\r\n"
@@ -69,7 +75,14 @@ typedef enum {
 
 //toggle a machine function on or off
 void cnc_toggle(Relay relay, bool state){
-   printf("\r\n(%s %s)" NL, RelayNames[relay], state ? "on" : "off");
+
+   //convert to caps
+   char buffer[128];
+   strcpy(buffer, RelayNames[relay]);
+   string_to_upper(buffer);
+
+   //output comments
+   printf("\r\n(%s %s)" NL, buffer, state ? "ON" : "OFF");
    switch(relay) {
       case chuck_main:           state ? printf("M06" ) : printf("M07");  break;
       case chuck_back:           state ? printf("M16" ) : printf("M17");  break;
@@ -91,22 +104,22 @@ void cnc_spindle_set(Spindle spindle, SpindleStatus status, SpindleFeedType feed
    switch(spindle){
    case spindle_main:
       switch(status){
-         case forward: printf("M3 S1=%.3f %s"NL, feedrate, feedtype == per_minute ? "G98" : "G99"); break;
-         case reverse: printf("M4 S1=%.3f %s"NL, feedrate, feedtype == per_minute ? "G98" : "G99"); break;
+         case forward: printf("M3 S1=%.3g %s"NL, feedrate, feedtype == per_minute ? "G98" : "G99"); break;
+         case reverse: printf("M4 S1=%.3g %s"NL, feedrate, feedtype == per_minute ? "G98" : "G99"); break;
          case stop: printf("M5"NL); break;
       }
       break;
    case spindle_back:
       switch(status){
-         case forward: printf("M23 S2=%.3f %s"NL, feedrate, feedtype == per_minute ? "G98" : "G99"); break;
-         case reverse: printf("M24 S2=%.3f %s"NL, feedrate, feedtype == per_minute ? "G98" : "G99"); break;
+         case forward: printf("M23 S2=%.3g %s"NL, feedrate, feedtype == per_minute ? "G98" : "G99"); break;
+         case reverse: printf("M24 S2=%.3g %s"NL, feedrate, feedtype == per_minute ? "G98" : "G99"); break;
          case stop: printf("M25"NL); break;
       }
       break;
    case spindle_tool:
       switch(status){
-         case forward: printf("%s\r\n M80 S%.3f" NL, feedtype == per_minute ? "G98" : "G99", feedrate); break;
-         case reverse: printf("%s\r\nM81 S%.3f" NL, feedtype == per_minute ? "G98" : "G99", feedrate); break;
+         case forward: printf("%s\r\n M80 S%.3g" NL, feedtype == per_minute ? "G98" : "G99", feedrate); break;
+         case reverse: printf("%s\r\nM81 S%.3g" NL, feedtype == per_minute ? "G98" : "G99", feedrate); break;
          case stop: printf("M82" NL);
       }
    }
@@ -119,7 +132,7 @@ void cnc_sleep(double seconds){
 
 //set maximum z travel at the beginning of program
 void cnc_max_z_travel(double distance){
-   printf("(MAXIMUM Z TRAVEL)" NL);
+   printf(NL "(MAXIMUM Z TRAVEL)" NL);
    printf("G50 Z%.4g" NL, distance);
 }
 
@@ -286,7 +299,7 @@ typedef enum {
 //chamfers a corner that the tool is currently adjacent to
 void cnc_chamfer(double size, double cutting_speed, double spindle_speed, Direction side){
 
-   printf("\r\n(Chamfering edge)" NL);
+   printf("\r\n(CHAMFERING EDGE)" NL);
    cnc_spindle_set(spindle_main, forward, per_minute, spindle_speed);
    
    if(side == left || side == both){
@@ -322,7 +335,7 @@ void cnc_sub_spindle_pickoff(double distance_from_zero){
 void cnc_set_standard_machining_data(){
    printf(
       "" NL
-      "(Setting Machining Data)" NL
+      "(TEMPLATE M DATA)" NL
       "" NL
       "$0" NL
       "D" NL
@@ -345,15 +358,14 @@ void cnc_set_standard_machining_data(){
 //call up a tool
 //TODO fingure out how offsets work
 void cnc_select_tool(unsigned tool_id){
-   printf("\r\n(Calling up tool %i)" NL, tool_id);
+   printf("\r\n(CALL UP T%i)" NL, tool_id);
    printf("T%02d%02d" NL, tool_id, tool_id);
 }
 
 //faceoff the material for a chucker A20 at given speed
 void cnc_faceoff_material(double cutting_speed, double spindle_speed, double length){
-   printf("\r\n(faceoff)" NL); 
+   printf("\r\n(FACEOFF)" NL); 
    
-   cnc_toggle(oil, true);
    cnc_toggle(chuck_main, false);
    cnc_move(Z_ABS, -length, RAPID);
    cnc_sleep(0.2);
@@ -396,5 +408,5 @@ void cnc_set_program_number(unsigned number){
       fprintf(stderr, "invalid program number chosen");
       exit(1);
    }
-   printf("%%\r\n(SETTING PROGRAM NUMBER)\r\nO%d" NL, number);
+   printf("%%\r\n(SET PRGM #)\r\nO%d" NL, number);
 }

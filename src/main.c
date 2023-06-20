@@ -9,8 +9,15 @@ int main(){
    cnc_select_tool(4);
    cnc_faceoff_material(STAINLESS_303.cutoff_speed, SPINDLE_SPEED, 0.055);
 
+   //turning
+   cnc_select_tool(5);
+   cnc_spindle_set(spindle_main, forward, SPINDLE_SPEED, per_rotation);
+   cnc_move(X_ABS, 0.333, STAINLESS_303.turning_speed);
+   cnc_move(Z_ABS, 1.0, STAINLESS_303.turning_speed);
+         
+   //call up cutoff and cut off part
    cnc_move(X_ABS, .5, RAPID);
-   cnc_move(Z_ABS, 1.0, RAPID);
+   cnc_select_tool(4);
    cnc_cutoff(STAINLESS_303.cutoff_speed, SPINDLE_SPEED, true);
    
    cnc_move(X_ABS, .5, RAPID);
