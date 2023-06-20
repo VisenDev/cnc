@@ -254,6 +254,8 @@ void cnc_mill_hex(unsigned mill_id, double milling_speed, double mill_diameter, 
   */ 
 }
 
+void  cnc_sync_programs(unsigned);
+
 //cutoff tool must be called before calling cnc_cutoff
 void cnc_cutoff(double cutting_speed, double spindle_speed, bool pickoff){
 
@@ -263,8 +265,7 @@ void cnc_cutoff(double cutting_speed, double spindle_speed, bool pickoff){
       cnc_toggle(sync_spindles, true);
       cnc_toggle(pickoff_support, true);
       cnc_toggle(interference_check, false);
-      //TODO Update this sync
-      printf("!2L650" NL);
+      cnc_sync_programs(650);
    }
 
    cnc_move(X_ABS, -0.10, cutting_speed);
@@ -307,12 +308,13 @@ void cnc_chamfer(double size, double cutting_speed, double spindle_speed, Direct
 
 //TODO finish this function at spindle syncronization
 void cnc_sub_spindle_pickoff(double distance_from_zero){
-   printf("(pickoff)" NL);
+   printf(NL "(PICKOFF)" NL);
    cnc_toggle(chuck_back, false);
    cnc_move(Z_ABS, distance_from_zero, RAPID);
    cnc_sleep(0.2);
    cnc_toggle(chuck_back, true);
    cnc_sleep(0.2);
+   cnc_sync_programs(650);
    cnc_move(Z_REL, -1, RAPID);
 }
 
@@ -344,7 +346,7 @@ void cnc_set_standard_machining_data(){
 //TODO fingure out how offsets work
 void cnc_select_tool(unsigned tool_id){
    printf("\r\n(Calling up tool %i)" NL, tool_id);
-   printf("T%02d00" NL, tool_id);
+   printf("T%02d%02d" NL, tool_id, tool_id);
 }
 
 //faceoff the material for a chucker A20 at given speed
